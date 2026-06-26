@@ -5,6 +5,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 from dgl import function as fn
+
 def init_params(module, n_layers):
     if isinstance(module, nn.Linear):
         module.weight.data.normal_(mean=0.0, std=0.02 / math.sqrt(n_layers))
@@ -15,8 +16,6 @@ def init_params(module, n_layers):
 
 import  dgl
 
-
-## 一开始的MLPmodel 
 class MLPModel(nn.Module):
     def __init__(self, args, k_token, input_dim, hidden_dim, num_classes, dropout, k1):
         super(MLPModel, self).__init__()
@@ -83,7 +82,7 @@ class MLPModel(nn.Module):
         elif self.mix_activation == 'relu':
             return F.relu(x)
         else:
-            raise ValueError(f"不支持的激活函数: {self.mix_activation}")
+            raise ValueError(f"Unsupporting Activation: {self.mix_activation}")
 
     def forward(self, x): 
         # x shape: [batch_size, k_token, input_dim]
@@ -113,105 +112,9 @@ class MLPModel(nn.Module):
         x_agg = torch.einsum('nkh,k->nh', x, weights)
 
         x_agg = self.FFN(x_agg)
-        
+        # ablation
         # x_agg = self.norm2(x_agg)
         # if self.dataset in ['wisconsin', 'cornell', 'texas']:
         #     x_agg = x_agg + self.belta * x_origin
         
-        
         return F.log_softmax(self.classifier(x_agg), dim=1) #, K_K1_mix.cpu()
-
-
-
-
-'''
-class MLPModel(nn.Module):
-    def __init__(self, args, k_token, input_dim, hidden_dim, num_classes, dropout, k1):
-        super(MLPModel, self).__init__()
-        
-        self.token_mlp = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout)
-        )
-        self.ffn_dim = args.ffn_dim
-
-        self.token_wise_mlp = nn.ModuleList([nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout)
-        ) for _ in range(k_token)]
-        )
-        
-        ###自由可学习的权重矩阵W
-        # self.W_k = nn.Parameter(torch.Tensor(k_token, k1))
-        # nn.init.xavier_uniform_(self.W_k)
-        
-        self.token_mixer = nn.Sequential(
-            nn.Linear(k_token, args.k1),
-            # nn.ReLU(),
-            nn.GELU(),
-            nn.Linear(args.k1, args.k2)
-        )
-        self.residual_proj = (
-            nn.Linear(k_token, args.k2)
-            if k_token != args.k2
-            else nn.Identity()
-        )
-        # self.k1_weights = nn.Parameter(torch.ones(k1) / k1)
-        self.k1_weights = nn.Parameter(torch.ones(args.k2) / args.k2)
-        
-        self.FFN = nn.Sequential(
-            nn.Linear(hidden_dim, self.ffn_dim),
-            nn.LayerNorm(self.ffn_dim),
-            nn.ReLU(),
-            nn.Dropout(args.attention_dropout)
-        )
-        self.classifier = nn.Sequential(
-                nn.Linear(self.ffn_dim, num_classes),
-                # nn.Linear(args.hidden_dim, num_classes),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-            )     
-        self.act = nn.GELU()
-        self.norm = nn.LayerNorm(hidden_dim)
-        self.norm2 = nn.LayerNorm(hidden_dim)
-
-        self.residual_weight = nn.Parameter(torch.tensor(0.0))
-
-        self.mix_activation = args.activation
-    
-    def apply_mix_activation(self, x):
-        if self.mix_activation == 'softmax':
-            return F.softmax(x, dim=0)
-        elif self.mix_activation == 'tanh':
-            return torch.tanh(x)
-        else:
-            raise ValueError(f"unsupported activation: {self.mix_activation}")
-
-    def forward(self, x): 
-        # x shape: [batch_size, k_token, input_dim]
-        input_dim =x.shape[-1]
-        x = torch.stack([layer(x[:,idx,:]) for idx, layer in enumerate(self.token_wise_mlp)], dim=1)
-        
-        x = x.transpose(1,2)
-        x_res = self.residual_proj(x)
-        x = self.token_mixer(x)
-        alpha = torch.sigmoid(self.residual_weight)  # scalar gate
-
-        x = alpha * x + (1 - alpha) * x_res
-        x = x.transpose(1,2)
-        
-        x = self.norm(x)
-        ## k1->1
-        weights = F.softmax(self.k1_weights, dim=0) # [k']
-        weights = weights.to(x.device)
-
-        x_agg = torch.einsum('nkh,k->nh', x, weights)
-
-        x_agg = self.FFN(x_agg)
-        
-        return F.log_softmax(self.classifier(x_agg), dim=1)
-'''
