@@ -268,7 +268,7 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
         # ------------------------- path-token -------------------------
         walk = pt[node]
         # 路径上的所有节点特征求和作为最终token的表示
-        if dataset not in ['actor', 'cornell', 'texas', 'wisconsin']:
+        if dataset in ['cora', 'pubmed', 'computers', 'wikics', 'CS']:
             for path in walk:
                 feature = torch.zeros(features.shape[1])
 
@@ -283,17 +283,8 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
                 feature = torch.cat([feature_raw, feature], dim=0)
                 nodes_features[node, i, :] = feature  
                 i += 1
-        # 路径上的最后一个节点表示作为最终token的表示
-        # if dataset in ['cornell', 'texas', 'actor']:
-        #     for path in walk:
-        #         endpoint_feature = features[path[-1]]
-        #         feature = torch.cat([1.5*feature_raw, 0.3*endpoint_feature], dim=0)
-        #         nodes_features[node, i, :] = feature
-        #         i += 1
         
-        ##这个代码使得texas在48:32:20的划分上取得了0.8541的成绩
-        
-        if dataset in [ 'actor', 'cornell', 'texas', 'wisconsin']: # 针对强异配数据集
+        if dataset in [ 'actor', 'cornell', 'texas', 'wisconsin', 'chameleon', 'squirrel', 'Flickr']: # 针对异配数据集
             for path in walk:
                 path_features = features[path[1:]]
                 sim = F.cosine_similarity(feature_raw.unsqueeze(0), path_features, dim=1)
@@ -365,6 +356,7 @@ def global_cn(sim_cn, features,topk):
         # global_tokens[i] = top_k_features.sum(dim=0)
     
     return global_tokens
+    
 def edge_index_to_adj_sparse(edge_index, num_nodes=None):
     if num_nodes is None:
         num_nodes = edge_index.max().item() + 1
@@ -389,63 +381,3 @@ def edge_index_to_adj_sparse(edge_index, num_nodes=None):
     
     return adj_dense
     
-from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-import numpy as np
-
-def visualize_feature_comparison(processed_features, labels, dataset_name):
-    """
-    对比可视化：原始特征 vs. 拼接Token后的全量特征
-    processed_features: [N, numTokens, d*2]
-    raw_dim: 原始特征的维度 (features.shape[1])
-    """
-    N, K, D_total = processed_features.shape
-    raw_dim = D_total // 2
-    true_labels = labels.cpu().numpy()
-    num_classes = len(np.unique(true_labels))
-
-    # 1. 提取原始特征 (Center Token 的前 raw_dim 维度)
-    # 根据 get_token 逻辑，第一个 token 是 center，拼接方式是 [raw, raw]
-    raw_features = processed_features[:, 0, :raw_dim].cpu().numpy()
-    
-    # 2. 提取全量特征 (展平所有 Token)
-    all_tokens_features = processed_features.view(N, -1).cpu().numpy()
-
-    # 3. 准备降维和绘图
-    # 如果维度太高，先用 PCA 降到 50 维以加速 t-SNE 并减少噪声
-    def get_tsne(data):
-        if data.shape[1] > 50:
-            data = PCA(n_components=50).fit_transform(data)
-        return TSNE(n_components=2, random_state=42, init='pca', learning_rate='auto').fit_transform(data)
-
-    print("--- Running t-SNE for Raw Features ---")
-    tsne_raw = get_tsne(raw_features)
-    
-    print("--- Running t-SNE for Processed Tokens ---")
-    tsne_all = get_tsne(all_tokens_features)
-
-    # 4. 绘图对比
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
-    cmap = plt.get_cmap('tab10') if num_classes <= 10 else plt.get_cmap('rainbow')
-
-    # 左图：原始特征可视化
-    for i in range(num_classes):
-        mask = (true_labels == i)
-        ax1.scatter(tsne_raw[mask, 0], tsne_raw[mask, 1], label=f'Class {i}', s=15, alpha=0.6, edgecolors='none')
-    ax1.set_title(f"Visual 1: Raw Features Only ({dataset_name})")
-    ax1.legend(loc='upper right', markerscale=2)
-
-    # 右图：拼接 Token 后的全量特征可视化
-    for i in range(num_classes):
-        mask = (true_labels == i)
-        ax2.scatter(tsne_all[mask, 0], tsne_all[mask, 1], label=f'Class {i}', s=15, alpha=0.6, edgecolors='none')
-    ax2.set_title(f"Visual 2: Full Tokenized Features ({dataset_name})")
-    ax2.legend(loc='upper right', markerscale=2)
-
-    plt.tight_layout()
-    save_path = f"./{dataset_name}_feature_contrast.png"
-    plt.savefig(save_path, dpi=300)
-    print(f"Comparison plot saved to: {save_path}")
-    plt.close()
- 
