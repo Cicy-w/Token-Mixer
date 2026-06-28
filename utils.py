@@ -267,7 +267,6 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
 
         # ------------------------- path-token -------------------------
         walk = pt[node]
-        # 路径上的所有节点特征求和作为最终token的表示
         if dataset in ['cora', 'pubmed', 'computers', 'wikics', 'CS']:
             for path in walk:
                 feature = torch.zeros(features.shape[1])
@@ -281,30 +280,6 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
                     feature = feature + nf 
             
                 feature = torch.cat([feature_raw, feature], dim=0)
-                nodes_features[node, i, :] = feature  
-                i += 1
-        
-        if dataset in [ 'actor', 'cornell', 'texas', 'wisconsin', 'chameleon', 'squirrel', 'Flickr']: # 针对异配数据集
-            for path in walk:
-                path_features = features[path[1:]]
-                sim = F.cosine_similarity(feature_raw.unsqueeze(0), path_features, dim=1)
-                
-                top_k = max(1, int(len(sim) * 0.2))
-                top_val, _ = torch.topk(sim, top_k)
-                threshold = max(0.3, top_val[-1].item())
-                
-                mask = (sim >= threshold).float()
-                sim = sim * mask
-                
-                if sim.sum() == 0:
-                    feature = torch.zeros_like(feature_raw) 
-                else:
-                    weights = sim / sim.sum()
-                    feature = torch.einsum('l,ld->d', weights, path_features)
-                
-                diff_feature = feature - feature_raw
-                
-                feature = torch.cat([feature_raw, diff_feature], dim=0)
                 nodes_features[node, i, :] = feature  
                 i += 1
             
