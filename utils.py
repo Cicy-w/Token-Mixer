@@ -289,8 +289,6 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
                 path_features = features[path[1:]]
                 sim = F.cosine_similarity(feature_raw.unsqueeze(0), path_features, dim=1)
                 
-                # 启发式改进：只保留相似度排名前 20% 且相似度 > 0.3 的节点
-                # 这样能强行在异配邻居中寻找潜在的“同类”
                 top_k = max(1, int(len(sim) * 0.2))
                 top_val, _ = torch.topk(sim, top_k)
                 threshold = max(0.3, top_val[-1].item())
@@ -303,12 +301,9 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
                 else:
                     weights = sim / sim.sum()
                     feature = torch.einsum('l,ld->d', weights, path_features)
-                # 此时 feature 是通过路径聚合得到的邻居特征表示
-                # 1. 计算差分特征 (Neighbor - Center)
+                
                 diff_feature = feature - feature_raw
                 
-                # 2. 进行显式差分拼接
-                # 将原始特征与差分特征拼接，维度依然是 features.shape[1] * 2
                 feature = torch.cat([feature_raw, diff_feature], dim=0)
                 nodes_features[node, i, :] = feature  
                 i += 1
@@ -374,7 +369,6 @@ def edge_index_to_adj_sparse(edge_index, num_nodes=None):
     adj = adj + adj.t()
     
     # 去除自环
-    # 稀疏矩阵去除自环比较复杂，转成 dense 处理（小图可用）
     adj_dense = adj.to_dense()
     adj_dense.fill_diagonal_(0)
     adj_dense = (adj_dense > 0).float()
