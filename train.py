@@ -80,7 +80,7 @@ def run_single_experiment(run_idx, args, device):
     if torch.cuda.is_available():
         torch.cuda.init() 
         
-    #重置显存统计
+    
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats(device)
     torch.cuda.synchronize()
@@ -91,10 +91,10 @@ def run_single_experiment(run_idx, args, device):
     else:
         G, features, labels, idx_train, idx_val, idx_test = get_dataset(args.dataset, split_seed=seed)
     
-    # 判断是否是二分类数据集（tolokers 是二分类）
+    
     is_binary = (labels.max().item() == 1)
     
-    # 对于 tolokers，标签是 0/1
+    
     if is_binary:
         labels = labels.float()
 
@@ -114,7 +114,7 @@ def run_single_experiment(run_idx, args, device):
     
     labels = labels.to(device)
 
-    # 创建 DataLoader
+   
     batch_data_train = Data.TensorDataset(processed_features[idx_train], labels[idx_train])
     batch_data_val   = Data.TensorDataset(processed_features[idx_val],   labels[idx_val])
     batch_data_test  = Data.TensorDataset(processed_features[idx_test],  labels[idx_test])
@@ -125,14 +125,14 @@ def run_single_experiment(run_idx, args, device):
     val_loader   = Data.DataLoader(batch_data_val,   batch_size=args.batch_size, shuffle=False)
     test_loader  = Data.DataLoader(batch_data_test,  batch_size=args.batch_size, shuffle=False)
 
-    # 计算 token 数量
+    
     if args.global_token:
         numTokens = args.t_nums + 1 + 1 + args.hop_num
     else:
         numTokens = args.t_nums + 1 + args.hop_num
     
     numnodes = features.shape[0]
-    # 创建模型
+    
     num_classes = 2 if is_binary else labels.max().item() + 1
     
     if args.model == 'transformer':
@@ -179,14 +179,14 @@ def run_single_experiment(run_idx, args, device):
             stop_varnames=[StopVariable.AUROC, StopVariable.LOSS],
             patience=args.patience,
             max_epochs=args.epochs,
-            remember=Best.RANKED   # AUROC 优先
+            remember=Best.RANKED   
         )
     else:
         stopping_args = dict(
             stop_varnames=[StopVariable.ACCURACY, StopVariable.LOSS],
             patience=args.patience,
             max_epochs=args.epochs,
-            remember=Best.RANKED   # ACCURACY 优先
+            remember=Best.RANKED   
         )
 
     early_stopping = EarlyStopping(model, **stopping_args)
@@ -232,7 +232,7 @@ def run_single_experiment(run_idx, args, device):
         epoch_train_time = time.time() - epoch_start
         train_time.append(epoch_train_time)
 
-        # 验证阶段
+       
         model.eval()
         loss_val_sum = 0.0
         acc_val_sum = 0.0
@@ -255,7 +255,7 @@ def run_single_experiment(run_idx, args, device):
         else:
             print(f'Epoch {epoch+1:04d} | Train Loss: {loss_train_sum:.4f} | Val Loss: {avg_loss_val:.4f} | Val Acc: {val_metric:.4f}')
         
-        # 保存最佳模型
+        
         if val_metric > best_val_metric:
             best_val_metric = val_metric
             best_state = {k: v.cpu() for k, v in model.state_dict().items()}
@@ -264,11 +264,9 @@ def run_single_experiment(run_idx, args, device):
             print(f"Early stopping at epoch {epoch+1}")
             break
     
-    # 恢复最佳模型
     if best_state is not None:
         model.load_state_dict(best_state)
     
-    # 测试阶段
     model.eval()
     test_loss = 0.0
     test_acc = 0.0
@@ -323,13 +321,12 @@ def main():
         metrics.append(metric)
         train_time_runs.append(avg_train_time)
     avg_train_time = np.mean(train_time_runs)
-    # 计算统计结果
+    
     mean_loss = np.mean(losses)
     std_loss = np.std(losses, ddof=1)
     mean_metric = np.mean(metrics)
     std_metric = np.std(metrics, ddof=1)
 
-    # 判断指标名称
     is_binary = (args.dataset == 'tolokers' or args.dataset == 'minesweeper')
     metric_name = "AUROC" if is_binary else "Accuracy"
 
@@ -346,7 +343,6 @@ def main():
     consum_mem = mem_after-mem_before
     print(f"Memory consume: {consum_mem:.2f}MB")
 
-    # 保存结果到 CSV
     result_row = {
         'dataset': args.dataset,
         'seed':args.seed,
