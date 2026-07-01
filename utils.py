@@ -266,21 +266,20 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
 
         # ------------------------- path-token -------------------------
         walk = pt[node]
-        if dataset in ['cora', 'pubmed', 'computers', 'wikics', 'CS']:
-            for path in walk:
-                feature = torch.zeros(features.shape[1])
+        for path in walk:
+            feature = torch.zeros(features.shape[1])
 
-                isFirstNode = True
-                for node2 in path:
-                    if isFirstNode == True:
-                        isFirstNode = False
-                        continue
-                    nf = features[node2]
-                    feature = feature + nf 
-            
-                feature = torch.cat([feature_raw, feature], dim=0)
-                nodes_features[node, i, :] = feature  
-                i += 1
+            isFirstNode = True
+            for node2 in path:
+                if isFirstNode == True:
+                    isFirstNode = False
+                    continue
+                nf = features[node2]
+                feature = feature + nf 
+        
+            feature = torch.cat([feature_raw, feature], dim=0)
+            nodes_features[node, i, :] = feature  
+            i += 1
             
     print("done")
     print(nodes_features.size())      
