@@ -36,11 +36,10 @@ class MLPModel(nn.Module):
         ) for _ in range(k_token)]
         )
         
-        ###自由可学习的权重矩阵W
         self.W_k = nn.Parameter(torch.Tensor(k_token, k1))
         nn.init.xavier_uniform_(self.W_k)
         
-        # self.W_k = torch.randn(k_token, k_token) # 完全随机的固定matrix
+        # self.W_k = torch.randn(k_token, k_token) 
         
         # self.W_k = torch.eye(k_token, k1)
 
