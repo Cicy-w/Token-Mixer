@@ -93,7 +93,7 @@ def hop_features_gen(G, features, hop_num):
         for index in range(features.shape[0]):
             hop_features[index, i, :] = x[index]
     '''
-    adj = G.adj().to_sparse() # 保持稀疏矩阵格式
+    adj = G.adj().to_sparse() 
     
     hop_features = torch.empty(features.shape[0], hop_num, features.shape[1])
     x = features.clone()
@@ -113,7 +113,6 @@ def transition_probability_matrix(G, hop_num):
     degree = torch.sum(adj, dim=1)#.to_dense()
     degree_re = 1.0 / degree
     degree_re = degree_re.unsqueeze(1)
-    #转为sparse的degree_re
     # indices = torch.arrange(adj.size(0), device=adj.device).unsqueeze(0).repeat(2,1)
     
     tp_matrix = torch.mul(degree_re, adj)
@@ -247,7 +246,7 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
     
     for node in range(features.shape[0]):
         i = 0
-        feature_raw = features[node] # 取出当前中心节点特征
+        feature_raw = features[node] 
         
         # ------------------------- self-token -------------------------
         feature = torch.cat([feature_raw, feature_raw], dim=0)
@@ -288,18 +287,16 @@ def get_token(args, G, features, W, num_steps, dataset, globalToken, hopNum, uni
     return nodes_features
 
 from sklearn.metrics.pairwise import cosine_similarity as cos
-# 计算结构的相似性
 def similarity_CN(data, feature, alpha):
     edge_index = torch.stack(data.edges()) # 2,E
 
     self_loop_mask = (edge_index[0] != edge_index[1])
     edge_index = edge_index[:, self_loop_mask]
     
-    print("是否有自环:", (edge_index[0] == edge_index[1]).any().item())
     adj = edge_index_to_adj_sparse(edge_index)
     Scn = torch.mm(adj,adj)
 
-    fea_dist = cos(feature.numpy())  # 邻域特征之间的相似性
+    fea_dist = cos(feature.numpy()) 
     fea_dist = torch.from_numpy(fea_dist)
 
     sim = alpha*Scn + (1-alpha)*fea_dist
@@ -313,7 +310,6 @@ def global_cn(sim_cn, features,topk):
     for i in range(N):
         sim_row = sim_cn[i]
         
-        # 把自身相似度设为 -inf 或 0，排除自身
         sim_row_no_self = sim_row.clone()
         sim_row_no_self[i] = -float('inf')
         
@@ -340,10 +336,8 @@ def edge_index_to_adj_sparse(edge_index, num_nodes=None):
         size=(num_nodes, num_nodes)
     )
     
-    # 对称化
     adj = adj + adj.t()
     
-    # 去除自环
     adj_dense = adj.to_dense()
     adj_dense.fill_diagonal_(0)
     adj_dense = (adj_dense > 0).float()
