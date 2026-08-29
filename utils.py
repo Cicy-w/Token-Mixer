@@ -84,8 +84,8 @@ def normalize_adj(adj):
 
 def hop_features_gen(G, features, hop_num):
     
-    adj = G.adj().to_dense()
-    # adj = normalize_adj(adj)
+    # adj = G.adj().to_dense()
+    adj = normalize_adj(adj)
     hop_features = torch.empty(features.shape[0], hop_num, features.shape[1])
     x = features + torch.zeros_like(features)
     for i in range(hop_num):
